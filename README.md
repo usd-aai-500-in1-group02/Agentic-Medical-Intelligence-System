@@ -54,6 +54,10 @@
 
 In the rapidly evolving landscape of medical technology, our **Advanced Multi-Agent Medical Intelligence System** represents a groundbreaking fusion of cutting-edge artificial intelligence and healthcare expertise. This academic project demonstrates the practical application of sophisticated AI concepts learned in our graduate studies, showcasing how multiple intelligent agents can collaborate to provide comprehensive medical assistance.
 
+### Project Demo
+
+![Demo](assets/demo.gif)
+
 #### 🎪 Core Innovation Philosophy
 
 Our system exemplifies the **distributed intelligence paradigm**, where specialized AI agents work in harmony to solve complex medical challenges:
