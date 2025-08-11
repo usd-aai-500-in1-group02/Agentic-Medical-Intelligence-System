@@ -831,17 +831,17 @@ This project serves as a comprehensive demonstration of the skills, knowledge, a
 **Project Team - Group 2**
 
 🔹 **Sourangshu Pal** - Senior Visual Computing Engineer  
-📧 Email: spal@usd.edu  
+📧 Email: spal@sandiego.edu  
 🔗 LinkedIn: sourangshu.pal  
 🐙 GitHub: sourangshupal
 
 🔹 **Riyaz Khorasi** - Senior Data Scientist  
-📧 Email: rkhorasi@usd.edu  
+📧 Email: rkhorasi@sandiego.edu 
 🔗 LinkedIn: riyaz.khorasi  
 🐙 GitHub: riyazkhorasi
 
 🔹 **Prashant Khare** - Lead AI Systems Architect 
-📧 Email: pkhare@usd.edu  
+📧 Email: pkhare@sandiego.edu
 🔗 LinkedIn: prashant.khare  
 🐙 GitHub: prashantkhare
 
