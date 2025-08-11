@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical RAG with Vision Agents</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/fluency/48/chromatography.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #666666;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #0099cc;
+            --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            --border-color: #333333;
+            --success-color: #00ff88;
+            --warning-color: #ffaa00;
+            --error-color: #ff4444;
+            --shadow-light: 0 4px 20px rgba(0, 212, 255, 0.1);
+            --shadow-heavy: 0 8px 40px rgba(0, 212, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-primary);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(0, 153, 204, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, rgba(0, 212, 255, 0.05) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(-20px) translateY(-10px); }
+            50% { transform: translateX(20px) translateY(10px); }
+            75% { transform: translateX(-10px) translateY(20px); }
+        }
+        /* Compact Header Styles */
+        .main-header {
+            text-align: center;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+        }
+
+        .main-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.3rem;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            from { filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3)); }
+            to { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.6)); }
+        }
+
+        .main-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            font-weight: 400;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            box-shadow: var(--shadow-heavy);
+            border: 1px solid var(--border-color);
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            z-index: 1;
+        }
+        /* Chat Body */
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-primary) var(--bg-tertiary);
+        }
+
+        .chat-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 3px;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+
+        /* Chat Footer */
+        .chat-footer {
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        /* Message Styles */
+        .message {
+            max-width: 85%;
+            margin-bottom: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 18px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            animation: messageSlideIn 0.3s ease-out;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+            box-shadow: var(--shadow-light);
+            font-weight: 500;
+        }
+
+        .assistant-message {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Ensure all text content is visible - High specificity rules */
+        .assistant-message p,
+        .user-message p,
+        .message p {
+            color: #ffffff !important;
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+
+        .assistant-message strong,
+        .user-message strong,
+        .message strong {
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+
+        .assistant-message p strong,
+        .user-message p strong,
+        .message p strong {
+            color: #ffffff !important;
+        }
+
+        .message em {
+            color: var(--text-secondary) !important;
+        }
+
+        .message h1, .message h2, .message h3, .message h4, .message h5, .message h6 {
+            color: var(--accent-primary) !important;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .message ul, .message ol {
+            color: var(--text-primary) !important;
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .message li {
+            color: var(--text-primary) !important;
+            margin: 0.25rem 0;
+        }
+
+        .message code {
+            background: var(--bg-primary) !important;
+            color: var(--accent-primary) !important;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .message pre {
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+
+        .message a {
+            color: var(--accent-primary) !important;
+            text-decoration: none;
+        }
+
+        .message a:hover {
+            color: var(--accent-secondary) !important;
+            text-decoration: underline;
+        }
+
+        /* Special validation and warning messages - handled by JavaScript */
+
+        /* Ensure all paragraph content is visible */
+        .assistant-message p,
+        .user-message p {
+            color: inherit !important;
+        }
+
+        /* Override any inherited styles that might hide text - Maximum specificity */
+        .chat-body .message,
+        .chat-body .message *,
+        .chat-body .assistant-message,
+        .chat-body .assistant-message *,
+        .chat-body .user-message,
+        .chat-body .user-message * {
+            color: #ffffff !important;
+        }
+
+        /* Specific targeting for validation messages */
+        .message p:contains("Human Validation"),
+        .message p:contains("⚠️"),
+        .assistant-message p:contains("Human Validation"),
+        .assistant-message p:contains("⚠️") {
+            color: #ffaa00 !important;
+            background: rgba(255, 170, 0, 0.15) !important;
+            padding: 0.75rem !important;
+            border-radius: 8px !important;
+            border-left: 4px solid #ffaa00 !important;
+            margin: 1rem 0 !important;
+        }
+
+        /* Force visibility for all text elements */
+        div[id="chat-body"] .message,
+        div[id="chat-body"] .message p,
+        div[id="chat-body"] .message strong,
+        div[id="chat-body"] .message span,
+        div[id="chat-body"] .message div {
+            color: #ffffff !important;
+        }
+        /* Agent Tag */
+        .agent-tag {
+            display: inline-block;
+            background: var(--accent-gradient);
+            color: var(--bg-primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+            animation: agentTagPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes agentTagPulse {
+            0%, 100% { box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3); }
+            50% { box-shadow: 0 4px 16px rgba(0, 212, 255, 0.5); }
+        }
+        /* Input Styles */
+        .message-input {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            padding: 1rem 1.5rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            resize: none;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            min-height: 50px;
+            max-height: 120px;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+            background: var(--bg-secondary);
+        }
+
+        .message-input::placeholder {
+            color: var(--text-muted);
+        }
+        /* Button Styles */
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            color: var(--bg-primary);
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-heavy);
+            color: var(--bg-primary);
+        }
+
+        .btn-outline-primary {
+            background: transparent;
+            border: 2px solid var(--accent-primary);
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            transform: translateY(-2px);
+        }
+
+        /* File Upload Styles */
+        .file-upload-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-upload-btn {
+            background: var(--accent-gradient);
+            border: none;
+            color: var(--bg-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-upload-btn:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        /* Mic Button Styles */
+        .mic-btn {
+            background: var(--success-color);
+            border: none;
+            color: var(--bg-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .mic-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.5);
+            background: #00cc66;
+        }
+
+        .mic-btn.recording {
+            background: var(--error-color);
+            animation: recordingPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes recordingPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(255, 68, 68, 0.3); }
+            50% { box-shadow: 0 8px 40px rgba(255, 68, 68, 0.7); }
+        }
+
+        /* Input Controls Container */
+        .input-controls {
+            flex-shrink: 0;
+        }
+
+        /* Message Input Container */
+        .message-input-container {
+            flex: 1;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        /* Send Button Styles */
+        .send-btn {
+            background: var(--accent-gradient);
+            border: none;
+            color: var(--bg-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .file-upload-input {
+            position: absolute;
+            top: 0;
+            right: 0;
+            margin: 0;
+            padding: 0;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            filter: alpha(opacity=0);
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Clear Conversation Button - Close to Chat Window */
+        .clear-conversation-btn {
+            position: fixed;
+            left: 220px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, var(--error-color), #cc3333);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+            font-size: 0.9rem;
+            z-index: 9999;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .clear-conversation-btn:hover {
+            background: linear-gradient(135deg, #cc3333, var(--error-color));
+            transform: translateY(-50%) translateX(3px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .clear-btn-container {
+            display: block; /* Show container for debugging */
+        }
+
+        /* Ultra-Compact Footer Styles */
+        .main-footer {
+            text-align: center;
+            padding: 0.3rem 0;
+            margin-top: 0.5rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        .footer-content {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.3;
+        }
+
+        .footer-content .heart {
+            color: var(--error-color);
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .footer-team {
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        .footer-program {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+            }
+            
+            .chat-container {
+                height: 80vh;
+                margin: 0 1rem;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+        }
+        /* Image Styles */
+        .preview-container {
+            margin-top: 0.75rem;
+            display: none;
+        }
+        
+        .preview-image {
+            max-width: 80px;
+            max-height: 80px;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+        }
+        
+        .result-image {
+            max-width: 400px;
+            max-height: 400px;
+            border-radius: 12px;
+            margin-top: 1rem;
+            box-shadow: var(--shadow-light);
+            border: 1px solid var(--border-color);
+        }
+        .image-side-by-side {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .image-container {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .image-caption {
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        /* Thinking Animation */
+        .thinking {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 15px;
+            margin: 0.5rem 0;
+        }
+        
+        .dot {
+            height: 10px;
+            width: 10px;
+            margin-right: 8px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        
+        .dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+        /* Table styling for markdown tables */
+        .message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .message th, .message td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+        
+        .message th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+        
+        .message tr:nth-child(even) {
+            background: var(--bg-secondary);
+        }
+        
+        .message tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Main Header -->
+    <div class="main-header">
+        <h1 class="main-title">Medical RAG with Vision Agents</h1>
+        <p class="main-subtitle">Upload medical images or ask health-related questions</p>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container-fluid px-4">
+        <!-- Chat Container -->
+        <div class="chat-container">
+            <div id="chat-body" class="chat-body">
+                <div class="message assistant-message">
+                    <div class="agent-tag">System</div>
+                    <p>Hello! I'm your medical assistant. You can ask me health-related questions or upload medical images for analysis.</p>
+                </div>
+            </div>
+            
+            <div class="chat-footer">
+                <form id="chat-form" class="d-flex align-items-end gap-3">
+                    <div class="input-controls d-flex align-items-center gap-2">
+                        <div class="file-upload-container">
+                            <button type="button" class="file-upload-btn">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="file" class="file-upload-input" id="image-upload" accept="image/*">
+                        </div>
+                        
+                        <button type="button" class="mic-btn" id="voice-record-btn">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="message-input-container">
+                        <div class="preview-container" id="preview-container">
+                            <div class="d-flex align-items-center mb-2">
+                                <img id="preview-image" class="preview-image me-2" src="">
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="remove-image">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="message-input" class="message-input" rows="1" placeholder="Ask a medical question or upload an image..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Conversation Button Container -->
+    <div class="clear-btn-container">
+        <button id="clear-chat" class="clear-conversation-btn">
+            <i class="fas fa-trash me-2"></i> Clear Conversation
+        </button>
+    </div>
+
+    <!-- Minimized Footer -->
+    <div class="main-footer">
+        <div class="footer-content">
+            <p>Made with <span class="heart"><i class="fas fa-heart"></i></span> by <span class="footer-team">Sourangshu Pal, Riyaz & Prashant (Team 2)</span> | MS in Applied Artificial Intelligence | Intro to Artificial Intelligence | USD</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script>
+
+        // let mediaRecorder;
+        // let audioChunks = [];
+        // let isRecording = false;
+        // let audioContext;
+        // let currentAudio = null;  // Store a single audio instance
+        // // let elevenlabsApiKey = 'sk_4c9d3dfca9e183c7e8a7c0b9c6f7483e074ded17251e5fe7'; // Replace with your actual API key
+        // let selectedVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Default voice ID (Rachel)
+
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     const chatBody = document.getElementById('chat-body');
+        //     const chatForm = document.getElementById('chat-form');
+        //     const messageInput = document.getElementById('message-input');
+        //     const imageUpload = document.getElementById('image-upload');
+        //     const previewContainer = document.getElementById('preview-container');
+        //     const previewImage = document.getElementById('preview-image');
+        //     const removeImageBtn = document.getElementById('remove-image');
+        //     const clearChatBtn = document.getElementById('clear-chat');
+
+        //     // Add voice recording button to the UI
+        //     const fileUploadContainer = document.querySelector('.file-upload-container');
+        //     // const voiceButtonHTML = `
+        //     //     <button type="button" class="btn btn-warning rounded-circle ms-2" id="voice-record-btn" style="width: 40px; height: 40px;">
+        //     //         <i class="fas fa-microphone"></i>
+        //     //     </button>
+        //     // `;
+        //     const voiceButtonHTML = `
+        //         <button type="button" class="btn btn-warning rounded-circle ms-2 me-2" id="voice-record-btn" style="width: 40px; height: 40px;">
+        //             <i class="fas fa-microphone"></i>
+        //         </button>
+        //     `;
+        //     fileUploadContainer.insertAdjacentHTML('afterend', voiceButtonHTML);
+            
+        //     const voiceRecordBtn = document.getElementById('voice-record-btn');
+            
+        //     // Voice recording functionality
+        //     voiceRecordBtn.addEventListener('click', toggleRecording);
+            
+        //     // Initialize audio context
+        //     try {
+        //         window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        //         audioContext = new AudioContext();
+        //     } catch (e) {
+        //         console.error('Web Audio API is not supported in this browser');
+        //     }
+            
+        //     // We no longer need to store conversation history in frontend
+        //     // Only maintain display messages
+        //     let displayMessages = [];
+            
+        //     // Auto-resize textarea
+        //     messageInput.addEventListener('input', function() {
+        //         this.style.height = 'auto';
+        //         this.style.height = (this.scrollHeight) + 'px';
+        //     });
+            
+        //     // Handle image upload
+        //     imageUpload.addEventListener('change', function(e) {
+        //         if (e.target.files.length > 0) {
+        //             const file = e.target.files[0];
+        //             const reader = new FileReader();
+                    
+        //             reader.onload = function(e) {
+        //                 previewImage.src = e.target.result;
+        //                 previewContainer.style.display = 'block';
+        //             };
+                    
+        //             reader.readAsDataURL(file);
+        //         }
+        //     });
+            
+        //     // Remove image preview
+        //     removeImageBtn.addEventListener('click', function() {
+        //         imageUpload.value = '';
+        //         previewContainer.style.display = 'none';
+        //         previewImage.src = '';
+        //     });
+            
+        //     // Clear chat (only visual)
+        //     clearChatBtn.addEventListener('click', function() {
+        //         displayMessages = [];
+        //         chatBody.innerHTML = `
+        //             <div class="message assistant-message">
+        //                 <div class="agent-tag">System</div>
+        //                 <p>Hello! I'm your medical assistant. You can ask me health-related questions or upload medical images for analysis.</p>
+        //             </div>
+        //         `;
+        //     });
+            
+        //     // Handle form submission
+        //     chatForm.addEventListener('submit', async function(e) {
+        //         e.preventDefault();
+                
+        //         // Get message from input or transcribed text
+        //         const message = messageInput.value.trim();
+        //         if (!message && !imageUpload.files.length) return;
+                
+        //         // Store image data if available
+        //         let imageDataUrl = null;
+        //         if (imageUpload.files.length > 0) {
+        //             imageDataUrl = previewImage.src;
+        //         }
+                
+        //         // Add user message to chat
+        //         const userMessageElement = document.createElement('div');
+        //         userMessageElement.className = 'message user-message';
+                
+        //         // Create message content with image if available
+        //         let messageContent = `<p>${message}</p>`;
+        //         if (imageDataUrl) {
+        //             messageContent += `
+        //                 <div class="mt-2">
+        //                     <img src="${imageDataUrl}" alt="Uploaded image" class="img-fluid rounded" style="max-height: 200px;">
+        //                 </div>
+        //             `;
+        //         }
+                
+        //         userMessageElement.innerHTML = messageContent;
+        //         chatBody.appendChild(userMessageElement);
+                
+        //         // Add thinking indicator
+        //         const thinkingElement = document.createElement('div');
+        //         thinkingElement.className = 'message assistant-message thinking';
+        //         thinkingElement.innerHTML = `
+        //             <div class="dot"></div>
+        //             <div class="dot"></div>
+        //             <div class="dot"></div>
+        //         `;
+        //         chatBody.appendChild(thinkingElement);
+                
+        //         // Scroll to bottom
+        //         chatBody.scrollTop = chatBody.scrollHeight;
+                
+        //         // Clear input
+        //         messageInput.value = '';
+        //         messageInput.style.height = 'auto';
+                
+        //         // Create form data
+        //         const formData = new FormData();
+        //         formData.append('message', message);
+                
+        //         // Add image if available
+        //         if (imageUpload.files.length > 0) {
+        //             formData.append('file', imageUpload.files[0]);
+        //         }
+                
+        //         try {
+        //             // Send to backend
+        //             const response = await fetch('/send_message', {
+        //                 method: 'POST',
+        //                 body: formData,
+        //                 credentials: 'include' // Important for cookie handling
+        //             });
+                    
+        //             const data = await response.json();
+                    
+        //             // Remove thinking indicator
+        //             chatBody.removeChild(thinkingElement);
+                    
+        //             // Add response to chat
+        //             const assistantMessageElement = document.createElement('div');
+        //             assistantMessageElement.className = 'message assistant-message';
+                    
+        //             // Get clean text for TTS (without markdown)
+        //             const cleanText = removeMarkdown(data.response);
+                    
+        //             // Build HTML content for the response with audio controls
+        //             let assistantHtml = `
+        //                 <div class="agent-tag">${data.agent}</div>
+        //                 <div>${marked.parse(data.response)}</div>
+        //                 <div class="audio-controls mt-2">
+        //                     <button class="btn btn-sm btn-outline-primary play-tts-btn">
+        //                         <i class="fas fa-play"></i> Play Voice Response
+        //                     </button>
+        //                 </div>
+        //             `;
+
+        //             // After building the existing assistantHtml, add this:
+        //             if (data.agent.includes("HUMAN_VALIDATION")) {
+        //                 assistantHtml += `
+        //                     <div class="mt-3 p-3 border rounded bg-light">
+        //                         <p><strong>⚠️ Human Validation Required:</strong> Do you agree with this result?</p>
+        //                         <button class="btn btn-success btn-sm validate-btn" data-validation="yes">✔ Yes</button>
+        //                         <button class="btn btn-danger btn-sm validate-btn" data-validation="no">✖ No</button>
+        //                         <textarea class="form-control mt-2 validation-comments" rows="2" placeholder="Add comments (optional)"></textarea>
+        //                     </div>
+        //                 `;
+        //             }
+                    
+        //             // Add result image if it exists
+        //             if (data.result_image) {
+        //                 // If the skin lesion segmentation agent was used and both the user uploaded
+        //                 // an image and we have a result image, display them side by side
+        //                 if (data.agent === "SKIN_LESION_AGENT, HUMAN_VALIDATION" && imageDataUrl) {
+        //                     assistantHtml += `
+        //                         <div class="image-side-by-side">
+        //                             <div class="image-container">
+        //                                 <img src="${imageDataUrl}" alt="Original image" class="img-fluid rounded">
+        //                                 <div class="image-caption">Original Image</div>
+        //                             </div>
+        //                             <div class="image-container">
+        //                                 <img src="${data.result_image}" alt="Segmented image" class="img-fluid rounded">
+        //                                 <div class="image-caption">Segmentation Result</div>
+        //                             </div>
+        //                         </div>
+        //                     `;
+        //                 } else {
+        //                     // Otherwise just show the result image
+        //                     assistantHtml += `
+        //                         <div class="mt-3">
+        //                             <img src="${data.result_image}" alt="Result image" class="result-image">
+        //                         </div>
+        //                     `;
+        //                 }
+        //             }
+                    
+        //             assistantMessageElement.innerHTML = assistantHtml;
+        //             chatBody.appendChild(assistantMessageElement);
+
+        //             // Attach validation button events if human validation is required
+        //             if (data.agent.includes("HUMAN_VALIDATION")) {
+        //                 document.querySelectorAll('.validate-btn').forEach(button => {
+        //                     button.addEventListener('click', async function () {
+        //                         const validation = this.getAttribute('data-validation');
+        //                         // Use the closest container to get the textarea value
+        //                         const comments = this.closest('.p-3').querySelector('.validation-comments').value;
+        //                         await sendValidation(validation, comments);
+        //                     });
+        //                 });
+        //             }
+
+                    
+        //             // Get the play button and add click event to speak text
+        //             const playButton = assistantMessageElement.querySelector('.play-tts-btn');
+
+        //             playButton.addEventListener('click', async function () {
+        //                 // Get a reasonable amount of text to convert to speech (limit to 1000 chars to keep requests smaller)
+        //                 const textForSpeech = cleanText.length > 1000 ? cleanText.substring(0, 1000) + "..." : cleanText;
+
+        //                 // Disable the button while generating speech
+        //                 this.disabled = true;
+        //                 this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+        //                 try {
+        //                     // Get the new audio URL
+        //                     const audioUrl = await generateSpeech(textForSpeech);
+
+        //                     // Stop and clean up previous audio if playing
+        //                     if (currentAudio) {
+        //                         currentAudio.pause();
+        //                         currentAudio.currentTime = 0;
+        //                         URL.revokeObjectURL(currentAudio.src);  // Free up memory
+        //                         currentAudio = null;  // Clear the reference
+        //                     }
+
+        //                     // Create a new audio element for the new speech
+        //                     currentAudio = new Audio(audioUrl);
+
+        //                     // Set event listeners for button updates
+        //                     currentAudio.onplay = () => {
+        //                         this.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        //                         this.classList.remove('btn-outline-primary');
+        //                         this.classList.add('btn-primary');
+        //                         this.disabled = false;
+        //                     };
+
+        //                     currentAudio.onpause = () => {
+        //                         this.innerHTML = '<i class="fas fa-play"></i> Play';
+        //                         this.classList.remove('btn-primary');
+        //                         this.classList.add('btn-outline-primary');
+        //                     };
+
+        //                     currentAudio.onended = () => {
+        //                         this.innerHTML = '<i class="fas fa-play"></i> Play Again';
+        //                         this.classList.remove('btn-primary');
+        //                         this.classList.add('btn-outline-primary');
+        //                         URL.revokeObjectURL(audioUrl);  // Free memory after playback
+        //                         currentAudio = null;  // Ensure reference is cleared
+        //                     };
+
+        //                     // Toggle play/pause on button click
+        //                     this.onclick = () => {
+        //                         if (currentAudio && currentAudio.paused) {
+        //                             currentAudio.play();
+        //                         } else {
+        //                             currentAudio.pause();
+        //                         }
+        //                     };
+
+        //                     // Play the generated speech
+        //                     currentAudio.play();
+        //                 } catch (error) {
+        //                     console.error("TTS Error:", error);
+        //                     this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Voice failed';
+        //                     this.disabled = false;
+        //                 }
+        //             });
+
+                    
+        //             // Auto-play the voice response if needed
+        //             // Uncomment the next line to automatically play the voice response
+        //             // playButton.click();
+                    
+        //             // Store messages for display purposes only
+        //             displayMessages.push({
+        //                 role: "user",
+        //                 content: message,
+        //                 image: imageDataUrl
+        //             });
+                    
+        //             displayMessages.push({
+        //                 role: "assistant",
+        //                 content: data.response,
+        //                 agent: data.agent,
+        //                 resultImage: data.result_image
+        //             });
+                    
+        //             // Clear file upload preview
+        //             imageUpload.value = '';
+        //             previewContainer.style.display = 'none';
+                    
+        //         } catch (error) {
+        //             console.error("Error:", error);
+        //             // Remove thinking indicator
+        //             chatBody.removeChild(thinkingElement);
+                    
+        //             // Add error message
+        //             const errorElement = document.createElement('div');
+        //             errorElement.className = 'message assistant-message';
+        //             errorElement.innerHTML = `
+        //                 <div class="agent-tag">System</div>
+        //                 <p class="text-danger">Sorry, there was an error processing your request. Please try again.</p>
+        //             `;
+        //             chatBody.appendChild(errorElement);
+        //         }
+                
+        //         // Scroll to bottom again
+        //         chatBody.scrollTop = chatBody.scrollHeight;
+        //     });
+
+        //     // Allow sending message with Enter key
+        //     messageInput.addEventListener('keydown', function(e) {
+        //         if (e.key === 'Enter' && !e.shiftKey) {
+        //             e.preventDefault();
+        //             chatForm.dispatchEvent(new Event('submit'));
+        //         }
+        //     });
+        // });
+
+        // // Speech Recorder button function
+        // function toggleRecording() {
+        //     const voiceButton = document.getElementById('voice-record-btn');
+            
+        //     if (!isRecording) {
+        //         // Start recording
+        //         navigator.mediaDevices.getUserMedia({ audio: true })
+        //             .then(stream => {
+        //                 // mediaRecorder = new MediaRecorder(stream);
+        //                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        //                 audioChunks = [];
+                        
+        //                 mediaRecorder.addEventListener('dataavailable', event => {
+        //                     audioChunks.push(event.data);
+        //                 });
+                        
+        //                 mediaRecorder.addEventListener('stop', () => {
+        //                     // const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        //                     const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        //                     transcribeSpeech(audioBlob);
+                            
+        //                     // Reset UI
+        //                     voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+        //                     voiceButton.classList.remove('btn-danger');
+        //                     voiceButton.classList.add('btn-warning');
+        //                 });
+                        
+        //                 // Start recording
+        //                 mediaRecorder.start();
+        //                 isRecording = true;
+                        
+        //                 // Update UI
+        //                 voiceButton.innerHTML = '<i class="fas fa-stop"></i>';
+        //                 voiceButton.classList.remove('btn-warning');
+        //                 voiceButton.classList.add('btn-danger');
+        //             })
+        //             .catch(error => {
+        //                 console.error('Error accessing microphone:', error);
+        //                 alert('Could not access microphone. Please check your browser permissions.');
+        //             });
+        //     } else {
+        //         // Stop recording
+        //         mediaRecorder.stop();
+        //         isRecording = false;
+                
+        //         // Update UI to show processing
+        //         voiceButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        //         voiceButton.disabled = true;
+                
+        //         // Each track needs to be stopped to turn off the microphone
+        //         mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        //     }
+        // }
+
+        // function transcribeSpeech(audioBlob) {
+        //     const voiceButton = document.getElementById('voice-record-btn');
+        //     const messageInput = document.getElementById('message-input');
+            
+        //     // Create a temporary element to display processing status
+        //     const statusElement = document.createElement('div');
+        //     statusElement.className = 'alert alert-info mt-2';
+        //     statusElement.innerHTML = 'Processing voice input...';
+        //     document.querySelector('.chat-footer').prepend(statusElement);
+            
+        //     // Always use server-side transcription for recorded audio
+        //     const formData = new FormData();
+        //     formData.append('audio', audioBlob);
+            
+        //     fetch('/transcribe', {
+        //         method: 'POST',
+        //         body: formData
+        //     })
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         if (data.transcript) {
+        //             messageInput.value = data.transcript;
+        //             messageInput.focus();
+        //         } else {
+        //             throw new Error('Transcription failed');
+        //         }
+        //     })
+        //     .catch(error => {
+        //         console.error('Transcription error:', error);
+        //         statusElement.className = 'alert alert-danger mt-2';
+        //         statusElement.innerHTML = 'Failed to transcribe speech. Please try again or type your message.';
+        //     })
+        //     .finally(() => {
+        //         // Clean up
+        //         setTimeout(() => {
+        //             statusElement.remove();
+        //             voiceButton.disabled = false;
+        //             voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+        //         }, 3000);
+        //     });
+        // }
+
+        // // Function to generate speech using ElevenLabs API
+        // // Function to generate speech using the secure backend
+        // async function generateSpeech(text) {
+        //     try {
+        //         const response = await fetch('/generate-speech', {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             },
+        //             body: JSON.stringify({
+        //                 text: text,
+        //                 voice_id: selectedVoiceId  // Replace with the correct voice ID
+        //             })
+        //         });
+
+        //         if (!response.ok) {
+        //             throw new Error(`HTTP error! status: ${response.status}`);
+        //         }
+
+        //         // Convert response to a playable audio blob
+        //         const audioBlob = await response.blob();
+        //         return URL.createObjectURL(audioBlob);
+        //     } catch (error) {
+        //         console.error("Error generating speech:", error);
+        //         throw error;
+        //     }
+        // }
+
+        // // Function to send human validated response
+        // async function sendValidation(validation, comments) {
+        //     try {
+        //         // Create and display a waiting element
+        //         const waitingEl = document.createElement('div');
+        //         waitingEl.className = 'alert alert-info mt-2';
+        //         waitingEl.innerHTML = '⏳ Processing validation...';
+        //         document.getElementById("chat-body").appendChild(waitingEl);
+
+        //         const formData = new FormData();
+        //         formData.append("validation_result", validation);
+        //         formData.append("comments", comments);
+
+        //         const response = await fetch("/send_validation", {
+        //             method: "POST",
+        //             body: formData,
+        //             credentials: 'include'
+        //         });
+
+        //         const result = await response.json();
+
+        //         // Remove waiting indicator
+        //         waitingEl.remove();
+
+        //         // Build validated message HTML with audio controls added
+        //         const validationMsg = document.createElement("div");
+        //         validationMsg.className = "message assistant-message";
+        //         validationMsg.innerHTML = `
+        //             <div class="agent-tag">HUMAN_VALIDATED</div>
+        //             <div>${marked.parse(result.message)}</div>
+        //             <div>${marked.parse(result.response)}</div>
+        //             <div class="audio-controls mt-2">
+        //                 <button class="btn btn-sm btn-outline-primary play-tts-btn">
+        //                     <i class="fas fa-play"></i> Play Voice Response
+        //                 </button>
+        //             </div>
+        //         `;
+        //         document.getElementById("chat-body").appendChild(validationMsg);
+
+        //         // Get clean text for TTS (without markdown)
+        //         const cleanText = removeMarkdown(result.response);
+
+        //         // Attach event listener for TTS for validation message
+        //         const playButton = validationMsg.querySelector('.play-tts-btn');
+        //         if (playButton) {
+        //             playButton.addEventListener('click', async function () {
+
+        //                 // Get a reasonable amount of text to convert to speech (limit to 1000 chars to keep requests smaller)
+        //                 const textForSpeech = cleanText.length > 1000 ? cleanText.substring(0, 1000) + "..." : cleanText;
+
+        //                 // Disable the button while generating speech
+        //                 this.disabled = true;
+        //                 this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+
+        //                 try {
+        //                     // Get the new audio URL
+        //                     const audioUrl = await generateSpeech(textForSpeech);
+
+        //                     // Stop and clean up previous audio if playing
+        //                     if (currentAudio) {
+        //                         currentAudio.pause();
+        //                         currentAudio.currentTime = 0;
+        //                         URL.revokeObjectURL(currentAudio.src);  // Free up memory
+        //                         currentAudio = null;  // Clear the reference
+        //                     }
+
+        //                     // Create a new audio element for the new speech
+        //                     currentAudio = new Audio(audioUrl);
+
+        //                     // Set event listeners for button updates
+        //                     currentAudio.onplay = () => {
+        //                         this.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        //                         this.classList.remove('btn-outline-primary');
+        //                         this.classList.add('btn-primary');
+        //                         this.disabled = false;
+        //                     };
+
+        //                     currentAudio.onpause = () => {
+        //                         this.innerHTML = '<i class="fas fa-play"></i> Play';
+        //                         this.classList.remove('btn-primary');
+        //                         this.classList.add('btn-outline-primary');
+        //                     };
+
+        //                     currentAudio.onended = () => {
+        //                         this.innerHTML = '<i class="fas fa-play"></i> Play Again';
+        //                         this.classList.remove('btn-primary');
+        //                         this.classList.add('btn-outline-primary');
+        //                         URL.revokeObjectURL(audioUrl);  // Free memory after playback
+        //                         currentAudio = null;  // Ensure reference is cleared
+        //                     };
+
+        //                     // Toggle play/pause on button click
+        //                     this.onclick = () => {
+        //                         if (currentAudio && currentAudio.paused) {
+        //                             currentAudio.play();
+        //                         } else {
+        //                             currentAudio.pause();
+        //                         }
+        //                     };
+
+        //                     // Play the generated speech
+        //                     currentAudio.play();
+        //                 } catch (error) {
+        //                     console.error("TTS Error:", error);
+        //                     this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Voice failed';
+        //                     this.disabled = false;
+        //                 }
+
+        //             });
+        //         }
+        //     } catch (error) {
+        //         console.error("Validation submission failed:", error);
+        //     }
+        // }
+
+        // // Helper function to remove markdown for clean TTS
+        // function removeMarkdown(text) {
+        //     if (!text) return '';
+            
+        //     // Remove code blocks
+        //     text = text.replace(/```[\s\S]*?```/g, 'Code block omitted for speech.');
+            
+        //     // Remove inline code
+        //     text = text.replace(/`([^`]+)`/g, '$1');
+            
+        //     // Remove headers
+        //     text = text.replace(/#{1,6}\s+/g, '');
+            
+        //     // Remove bold/italic markers
+        //     text = text.replace(/(\*\*|__)(.*?)\1/g, '$2');
+        //     text = text.replace(/(\*|_)(.*?)\1/g, '$2');
+            
+        //     // Remove list markers
+        //     text = text.replace(/^\s*[\*\-+]\s+/gm, '');
+        //     text = text.replace(/^\s*\d+\.\s+/gm, '');
+            
+        //     // Remove links, keep text
+        //     text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+            
+        //     // Remove images
+        //     text = text.replace(/!\[([^\]]+)\]\([^)]+\)/g, 'Image: $1');
+            
+        //     // Remove blockquotes
+        //     text = text.replace(/^\>\s+/gm, '');
+            
+        //     // Handle line breaks sensibly for speech
+        //     text = text.replace(/\n{2,}/g, '. ');
+        //     text = text.replace(/\n/g, ' ');
+            
+        //     return text;
+        // }
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioContext;
+        let currentAudio = null;  // Store a single audio instance
+        let selectedVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Default voice ID (Rachel)
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatForm = document.getElementById('chat-form');
+            const messageInput = document.getElementById('message-input');
+            const chatBody = document.getElementById('chat-body');
+            const imageUpload = document.getElementById('image-upload');
+            const previewContainer = document.getElementById('preview-container');
+            const previewImage = document.getElementById('preview-image');
+            const removeImageBtn = document.getElementById('remove-image');
+            const clearChatBtn = document.getElementById('clear-chat');
+
+            // Modern 2025 dark mode text styling
+            function applyModernTextStyling() {
+                // Target all paragraph elements in messages
+                const allParagraphs = document.querySelectorAll('.message p, .assistant-message p, .user-message p');
+                allParagraphs.forEach(p => {
+                    p.style.color = '#e8e8e8';
+                    p.style.backgroundColor = 'transparent';
+                    p.style.visibility = 'visible';
+                    p.style.opacity = '1';
+                    p.style.display = 'block';
+                    p.style.fontSize = '15px';
+                    p.style.fontWeight = '400';
+                    p.style.lineHeight = '1.6';
+                    p.style.margin = '0.5rem 0';
+                    p.style.textShadow = 'none';
+                    p.style.zIndex = 'auto';
+                    p.style.position = 'static';
+                });
+
+                // Target all strong elements with modern accent
+                const allStrong = document.querySelectorAll('.message strong, .assistant-message strong, .user-message strong');
+                allStrong.forEach(strong => {
+                    strong.style.color = '#00d4ff';
+                    strong.style.backgroundColor = 'transparent';
+                    strong.style.visibility = 'visible';
+                    strong.style.opacity = '1';
+                    strong.style.display = 'inline';
+                    strong.style.fontSize = 'inherit';
+                    strong.style.fontWeight = '600';
+                    strong.style.textShadow = 'none';
+                    strong.style.zIndex = 'auto';
+                });
+
+                // Targeted validation message detection and styling
+                const messageElements = document.querySelectorAll('.message p, .assistant-message p, .user-message p');
+                messageElements.forEach(el => {
+                    const text = el.textContent || el.innerText || '';
+                    
+                    // Only target paragraph elements with validation text
+                    if ((text.includes('Human Validation') || 
+                         text.includes('Validation Required') ||
+                         text.includes('⚠️')) &&
+                        el.tagName === 'P') {
+                        
+                        console.log('Found validation paragraph:', el, 'Text:', text);
+                        
+                        // Apply validation message styling with black text on white background
+                        el.style.setProperty('color', '#000000', 'important'); // Black text
+                        el.style.setProperty('background-color', '#ffffff', 'important'); // White background
+                        el.style.setProperty('padding', '16px 20px', 'important');
+                        el.style.setProperty('border-radius', '10px', 'important');
+                        el.style.setProperty('border-left', '5px solid #ff6600', 'important'); // Orange accent
+                        el.style.setProperty('border', '2px solid #ff6600', 'important'); // Orange border
+                        el.style.setProperty('margin', '20px 0', 'important');
+                        el.style.setProperty('font-size', '15px', 'important');
+                        el.style.setProperty('font-weight', '600', 'important');
+                        el.style.setProperty('line-height', '1.5', 'important');
+                        el.style.setProperty('text-shadow', 'none', 'important'); // Remove shadow for clarity
+                        el.style.setProperty('visibility', 'visible', 'important');
+                        el.style.setProperty('opacity', '1', 'important');
+                        el.style.setProperty('display', 'block', 'important');
+                        el.style.setProperty('z-index', '1000', 'important');
+                        el.style.setProperty('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.15)', 'important'); // Subtle shadow
+                        
+                        // Style strong elements within validation paragraphs
+                        const strongElements = el.querySelectorAll('strong');
+                        strongElements.forEach(strong => {
+                            strong.style.setProperty('color', '#cc0000', 'important'); // Dark red for emphasis
+                            strong.style.setProperty('font-weight', '700', 'important');
+                            strong.style.setProperty('text-shadow', 'none', 'important'); // Remove shadow
+                        });
+                    }
+                });
+
+                // Clean up message containers
+                const allMessages = document.querySelectorAll('.message, .assistant-message, .user-message');
+                allMessages.forEach(msg => {
+                    msg.style.backgroundColor = ''; // Remove debug background
+                    // Ensure all child elements have proper styling
+                    const allChildren = msg.querySelectorAll('*:not(p):not(strong):not(.preview-container):not(.preview-image):not(img)');
+                    allChildren.forEach(child => {
+                        if (!child.classList.contains('agent-tag') && 
+                            !child.classList.contains('preview-container') && 
+                            !child.classList.contains('preview-image') &&
+                            child.tagName !== 'IMG') {
+                            child.style.color = '#e8e8e8';
+                            child.style.visibility = 'visible';
+                            child.style.opacity = '1';
+                        }
+                    });
+                });
+
+                // Ensure preview elements are not affected
+                const previewContainer = document.getElementById('preview-container');
+                const previewImage = document.getElementById('preview-image');
+                if (previewContainer) {
+                    previewContainer.style.color = '';
+                    previewContainer.style.backgroundColor = '';
+                }
+                if (previewImage) {
+                    previewImage.style.color = '';
+                    previewImage.style.backgroundColor = '';
+                    previewImage.style.visibility = 'visible';
+                    previewImage.style.opacity = '1';
+                }
+            }
+
+            // Run immediately
+            applyModernTextStyling();
+
+            // Run every time new content is added
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        applyModernTextStyling();
+                    }
+                });
+            });
+
+            // Observe changes in chat body
+            if (chatBody) {
+                observer.observe(chatBody, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+
+            // Mic button is now part of the HTML structure
+            
+            const voiceRecordBtn = document.getElementById('voice-record-btn');
+            
+            // Voice recording functionality
+            voiceRecordBtn.addEventListener('click', toggleRecording);
+            
+            // Initialize audio context
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+            } catch (e) {
+                console.error('Web Audio API is not supported in this browser');
+            }
+            
+            // We only maintain display messages
+            let displayMessages = [];
+            
+            // Auto-resize textarea
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            // Handle image upload with debugging
+            imageUpload.addEventListener('change', function(e) {
+                console.log('Image upload change event triggered');
+                console.log('Files selected:', e.target.files.length);
+                
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    console.log('File selected:', file.name, file.type, file.size);
+                    
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        console.log('FileReader onload triggered');
+                        console.log('Preview container element:', previewContainer);
+                        console.log('Preview image element:', previewImage);
+                        
+                        previewImage.src = e.target.result;
+                        previewContainer.style.display = 'block';
+                        
+                        console.log('Image src set, container display set to block');
+                        console.log('Preview container display:', previewContainer.style.display);
+                        console.log('Preview image src length:', previewImage.src.length);
+                    };
+                    
+                    reader.onerror = function(error) {
+                        console.error('FileReader error:', error);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                } else {
+                    console.log('No files selected');
+                }
+            });
+            
+            // Remove image preview
+            removeImageBtn.addEventListener('click', function() {
+                imageUpload.value = '';
+                previewContainer.style.display = 'none';
+                previewImage.src = '';
+            });
+            
+            // Clear chat (only visual)
+            clearChatBtn.addEventListener('click', function() {
+                displayMessages = [];
+                chatBody.innerHTML = `
+                    <div class="message assistant-message">
+                        <div class="agent-tag">System</div>
+                        <p>Hello! I'm your medical assistant. You can ask me health-related questions or upload medical images for analysis.</p>
+                    </div>
+                `;
+            });
+            
+            // Handle form submission
+            chatForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Get message from input or transcribed text
+                const message = messageInput.value.trim();
+                if (!message && !imageUpload.files.length) return;
+                
+                // Store image data if available
+                let imageDataUrl = null;
+                if (imageUpload.files.length > 0) {
+                    imageDataUrl = previewImage.src;
+                }
+                
+                // Add user message to chat
+                const userMessageElement = document.createElement('div');
+                userMessageElement.className = 'message user-message';
+                
+                // Create message content with image if available
+                let messageContent = `<p>${message}</p>`;
+                if (imageDataUrl) {
+                    messageContent += `
+                        <div class="mt-2">
+                            <img src="${imageDataUrl}" alt="Uploaded image" class="img-fluid rounded" style="max-height: 200px;">
+                        </div>
+                    `;
+                }
+                
+                userMessageElement.innerHTML = messageContent;
+                chatBody.appendChild(userMessageElement);
+                
+                // Add thinking indicator
+                const thinkingElement = document.createElement('div');
+                thinkingElement.className = 'message assistant-message thinking';
+                thinkingElement.innerHTML = `
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                `;
+                chatBody.appendChild(thinkingElement);
+                
+                // Scroll to bottom
+                chatBody.scrollTop = chatBody.scrollHeight;
+                
+                // Clear input
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                
+                try {
+                    let response;
+                    
+                    // Check if there's an image or just text
+                    if (imageUpload.files.length > 0) {
+                        // Create form data for image upload with optional text
+                        const formData = new FormData();
+                        formData.append('text', message);
+                        formData.append('image', imageUpload.files[0]);
+                        
+                        // Send to backend using the /upload endpoint
+                        response = await fetch('/upload', {
+                            method: 'POST',
+                            body: formData,
+                            credentials: 'include' // Important for cookie handling
+                        });
+                    } else {
+                        // Text-only query using the /chat endpoint with JSON
+                        response = await fetch('/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                query: message,
+                                conversation_history: [] // You might want to maintain this if needed
+                            }),
+                            credentials: 'include' // Important for cookie handling
+                        });
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Remove thinking indicator
+                    chatBody.removeChild(thinkingElement);
+                    
+                    // Add response to chat
+                    const assistantMessageElement = document.createElement('div');
+                    assistantMessageElement.className = 'message assistant-message';
+                    
+                    // Get clean text for TTS (without markdown)
+                    const cleanText = removeMarkdown(data.response);
+                    
+                    // Build HTML content for the response with audio controls
+                    let assistantHtml = `
+                        <div class="agent-tag">${data.agent}</div>
+                        <div>${marked.parse(data.response)}</div>
+                        <div class="audio-controls mt-2">
+                            <button class="btn btn-sm btn-outline-primary play-tts-btn">
+                                <i class="fas fa-play"></i> Play Voice Response
+                            </button>
+                        </div>
+                    `;
+
+                    // Add human validation UI if required
+                    if (data.agent.includes("HUMAN_VALIDATION")) {
+                        assistantHtml += `
+                            <div class="mt-3 p-3 border rounded bg-light">
+                                <p><strong>⚠️ Human Validation Required:</strong> Do you agree with this result?</p>
+                                <button class="btn btn-success btn-sm validate-btn" data-validation="yes">✔ Yes</button>
+                                <button class="btn btn-danger btn-sm validate-btn" data-validation="no">✖ No</button>
+                                <textarea class="form-control mt-2 validation-comments" rows="2" placeholder="Add comments (optional)"></textarea>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add result image if it exists
+                    if (data.result_image) {
+                        // If the skin lesion segmentation agent was used and both the user uploaded
+                        // an image and we have a result image, display them side by side
+                        if (data.agent === "SKIN_LESION_AGENT, HUMAN_VALIDATION" && imageDataUrl) {
+                            assistantHtml += `
+                                <div class="image-side-by-side">
+                                    <div class="image-container">
+                                        <img src="${imageDataUrl}" alt="Original image" class="img-fluid rounded">
+                                        <div class="image-caption">Original Image</div>
+                                    </div>
+                                    <div class="image-container">
+                                        <img src="${data.result_image}" alt="Segmented image" class="img-fluid rounded">
+                                        <div class="image-caption">Segmentation Result</div>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            // Otherwise just show the result image
+                            assistantHtml += `
+                                <div class="mt-3">
+                                    <img src="${data.result_image}" alt="Result image" class="result-image">
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    assistantMessageElement.innerHTML = assistantHtml;
+                    chatBody.appendChild(assistantMessageElement);
+
+                    // Attach validation button events if human validation is required
+                    if (data.agent.includes("HUMAN_VALIDATION")) {
+                        document.querySelectorAll('.validate-btn').forEach(button => {
+                            button.addEventListener('click', async function () {
+                                const validation = this.getAttribute('data-validation');
+                                // Use the closest container to get the textarea value
+                                const comments = this.closest('.p-3').querySelector('.validation-comments').value;
+                                await sendValidation(validation, comments);
+                            });
+                        });
+                    }
+                    
+                    // Get the play button and add click event to speak text
+                    const playButton = assistantMessageElement.querySelector('.play-tts-btn');
+
+                    playButton.addEventListener('click', async function () {
+                        // Get a reasonable amount of text to convert to speech (limit to 1000 chars to keep requests smaller)
+                        const textForSpeech = cleanText.length > 1000 ? cleanText.substring(0, 1000) + "..." : cleanText;
+
+                        // Disable the button while generating speech
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+                        try {
+                            // Get the new audio URL
+                            const audioUrl = await generateSpeech(textForSpeech);
+
+                            // Stop and clean up previous audio if playing
+                            if (currentAudio) {
+                                currentAudio.pause();
+                                currentAudio.currentTime = 0;
+                                URL.revokeObjectURL(currentAudio.src);  // Free up memory
+                                currentAudio = null;  // Clear the reference
+                            }
+
+                            // Create a new audio element for the new speech
+                            currentAudio = new Audio(audioUrl);
+
+                            // Set event listeners for button updates
+                            currentAudio.onplay = () => {
+                                this.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                                this.classList.remove('btn-outline-primary');
+                                this.classList.add('btn-primary');
+                                this.disabled = false;
+                            };
+
+                            currentAudio.onpause = () => {
+                                this.innerHTML = '<i class="fas fa-play"></i> Play';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                            };
+
+                            currentAudio.onended = () => {
+                                this.innerHTML = '<i class="fas fa-play"></i> Play Again';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                                URL.revokeObjectURL(audioUrl);  // Free memory after playback
+                                currentAudio = null;  // Ensure reference is cleared
+                            };
+
+                            // Toggle play/pause on button click
+                            this.onclick = () => {
+                                if (currentAudio && currentAudio.paused) {
+                                    currentAudio.play();
+                                } else {
+                                    currentAudio.pause();
+                                }
+                            };
+
+                            // Play the generated speech
+                            currentAudio.play();
+                        } catch (error) {
+                            console.error("TTS Error:", error);
+                            this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Voice failed';
+                            this.disabled = false;
+                        }
+                    });
+                    
+                    // Store messages for display purposes only
+                    displayMessages.push({
+                        role: "user",
+                        content: message,
+                        image: imageDataUrl
+                    });
+                    
+                    displayMessages.push({
+                        role: "assistant",
+                        content: data.response,
+                        agent: data.agent,
+                        resultImage: data.result_image
+                    });
+                    
+                    // Clear file upload preview
+                    imageUpload.value = '';
+                    previewContainer.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error("Error:", error);
+                    // Remove thinking indicator
+                    chatBody.removeChild(thinkingElement);
+                    
+                    // Add error message
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'message assistant-message';
+                    errorElement.innerHTML = `
+                        <div class="agent-tag">System</div>
+                        <p class="text-danger">Sorry, there was an error processing your request. Please try again.</p>
+                    `;
+                    chatBody.appendChild(errorElement);
+                }
+                
+                // Scroll to bottom again
+                chatBody.scrollTop = chatBody.scrollHeight;
+            });
+
+            // Allow sending message with Enter key
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        });
+
+        // Speech Recorder button function
+        function toggleRecording() {
+            const voiceButton = document.getElementById('voice-record-btn');
+            
+            if (!isRecording) {
+                // Start recording
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                        audioChunks = [];
+                        
+                        mediaRecorder.addEventListener('dataavailable', event => {
+                            audioChunks.push(event.data);
+                        });
+                        
+                        mediaRecorder.addEventListener('stop', () => {
+                            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                            transcribeSpeech(audioBlob);
+                            
+                            // Reset UI
+                            voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+                            voiceButton.classList.remove('btn-danger');
+                            voiceButton.classList.add('btn-warning');
+                        });
+                        
+                        // Start recording
+                        mediaRecorder.start();
+                        isRecording = true;
+                        
+                        // Update UI
+                        voiceButton.innerHTML = '<i class="fas fa-stop"></i>';
+                        voiceButton.classList.remove('btn-warning');
+                        voiceButton.classList.add('btn-danger');
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                        alert('Could not access microphone. Please check your browser permissions.');
+                    });
+            } else {
+                // Stop recording
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Update UI to show processing
+                voiceButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                voiceButton.disabled = true;
+                
+                // Each track needs to be stopped to turn off the microphone
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function transcribeSpeech(audioBlob) {
+            const voiceButton = document.getElementById('voice-record-btn');
+            const messageInput = document.getElementById('message-input');
+            
+            // Create a temporary element to display processing status
+            const statusElement = document.createElement('div');
+            statusElement.className = 'alert alert-info mt-2';
+            statusElement.innerHTML = 'Processing voice input...';
+            document.querySelector('.chat-footer').prepend(statusElement);
+            
+            // Use server-side transcription for recorded audio
+            const formData = new FormData();
+            formData.append('audio', audioBlob);
+            
+            fetch('/transcribe', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.transcript) {
+                    messageInput.value = data.transcript;
+                    messageInput.focus();
+                } else {
+                    throw new Error('Transcription failed');
+                }
+            })
+            .catch(error => {
+                console.error('Transcription error:', error);
+                statusElement.className = 'alert alert-danger mt-2';
+                statusElement.innerHTML = 'Failed to transcribe speech. Please try again or type your message.';
+            })
+            .finally(() => {
+                // Clean up
+                setTimeout(() => {
+                    statusElement.remove();
+                    voiceButton.disabled = false;
+                    voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+                }, 3000);
+            });
+        }
+
+        // Function to generate speech using the backend
+        async function generateSpeech(text) {
+            try {
+                const response = await fetch('/generate-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice_id: selectedVoiceId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Convert response to a playable audio blob
+                const audioBlob = await response.blob();
+                return URL.createObjectURL(audioBlob);
+            } catch (error) {
+                console.error("Error generating speech:", error);
+                throw error;
+            }
+        }
+
+        // Function to send human validated response
+        async function sendValidation(validation, comments) {
+            try {
+                // Create and display a waiting element
+                const waitingEl = document.createElement('div');
+                waitingEl.className = 'alert alert-info mt-2';
+                waitingEl.innerHTML = '⏳ Processing validation...';
+                document.getElementById("chat-body").appendChild(waitingEl);
+
+                const formData = new FormData();
+                formData.append("validation_result", validation);
+                formData.append("comments", comments);
+
+                const response = await fetch("/validate", {
+                    method: "POST",
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                // Remove waiting indicator
+                waitingEl.remove();
+
+                // Build validated message HTML with audio controls added
+                const validationMsg = document.createElement("div");
+                validationMsg.className = "message assistant-message";
+                validationMsg.innerHTML = `
+                    <div class="agent-tag">HUMAN_VALIDATED</div>
+                    <div>${marked.parse(result.message)}</div>
+                    <div>${marked.parse(result.response)}</div>
+                    <div class="audio-controls mt-2">
+                        <button class="btn btn-sm btn-outline-primary play-tts-btn">
+                            <i class="fas fa-play"></i> Play Voice Response
+                        </button>
+                    </div>
+                `;
+                document.getElementById("chat-body").appendChild(validationMsg);
+
+                // Get clean text for TTS (without markdown)
+                const cleanText = removeMarkdown(result.response);
+
+                // Attach event listener for TTS for validation message
+                const playButton = validationMsg.querySelector('.play-tts-btn');
+                if (playButton) {
+                    playButton.addEventListener('click', async function () {
+                        // Get a reasonable amount of text to convert to speech (limit to 1000 chars to keep requests smaller)
+                        const textForSpeech = cleanText.length > 1000 ? cleanText.substring(0, 1000) + "..." : cleanText;
+
+                        // Disable the button while generating speech
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+                        try {
+                            // Get the new audio URL
+                            const audioUrl = await generateSpeech(textForSpeech);
+
+                            // Stop and clean up previous audio if playing
+                            if (currentAudio) {
+                                currentAudio.pause();
+                                currentAudio.currentTime = 0;
+                                URL.revokeObjectURL(currentAudio.src);  // Free up memory
+                                currentAudio = null;  // Clear the reference
+                            }
+
+                            // Create a new audio element for the new speech
+                            currentAudio = new Audio(audioUrl);
+
+                            // Set event listeners for button updates
+                            currentAudio.onplay = () => {
+                                this.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                                this.classList.remove('btn-outline-primary');
+                                this.classList.add('btn-primary');
+                                this.disabled = false;
+                            };
+
+                            currentAudio.onpause = () => {
+                                this.innerHTML = '<i class="fas fa-play"></i> Play';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                            };
+
+                            currentAudio.onended = () => {
+                                this.innerHTML = '<i class="fas fa-play"></i> Play Again';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                                URL.revokeObjectURL(audioUrl);  // Free memory after playback
+                                currentAudio = null;  // Ensure reference is cleared
+                            };
+
+                            // Toggle play/pause on button click
+                            this.onclick = () => {
+                                if (currentAudio && currentAudio.paused) {
+                                    currentAudio.play();
+                                } else {
+                                    currentAudio.pause();
+                                }
+                            };
+
+                            // Play the generated speech
+                            currentAudio.play();
+                        } catch (error) {
+                            console.error("TTS Error:", error);
+                            this.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Voice failed';
+                            this.disabled = false;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Validation submission failed:", error);
+            }
+        }
+
+        // Helper function to remove markdown for clean TTS
+        function removeMarkdown(text) {
+            if (!text) return '';
+            
+            // Remove code blocks
+            text = text.replace(/```[\s\S]*?```/g, 'Code block omitted for speech.');
+            
+            // Remove inline code
+            text = text.replace(/`([^`]+)`/g, '$1');
+            
+            // Remove headers
+            text = text.replace(/#{1,6}\s+/g, '');
+            
+            // Remove bold/italic markers
+            text = text.replace(/(\*\*|__)(.*?)\1/g, '$2');
+            text = text.replace(/(\*|_)(.*?)\1/g, '$2');
+            
+            // Remove list markers
+            text = text.replace(/^\s*[\*\-+]\s+/gm, '');
+            text = text.replace(/^\s*\d+\.\s+/gm, '');
+            
+            // Remove links, keep text
+            text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+            
+            // Remove images
+            text = text.replace(/!\[([^\]]+)\]\([^)]+\)/g, 'Image: $1');
+            
+            // Remove blockquotes
+            text = text.replace(/^\>\s+/gm, '');
+            
+            // Handle line breaks sensibly for speech
+            text = text.replace(/\n{2,}/g, '. ');
+            text = text.replace(/\n/g, ' ');
+            
+            return text;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Database files (will be created in container)
+data/docs_db/
+data/qdrant_db/
+data/parsed_docs/
+
+# Upload directories (will be created in container)
+uploads/*/
+
+# Log files
+*.log
+agent_orchestration.log
+
+# Documentation and development files
+README.md
+CLAUDE.md
+LICENSE
+*.md
+
+# Jupyter notebooks (development only)
+*.ipynb
+.ipynb_checkpoints
+
+# Test files and sample data
+test_*
+sample_*
+*_test.py
+
+# Temporary files
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# Large model files (should be downloaded in container)
+*.tar
+
+# Audio files (generated at runtime)
+*.mp3
+*.webm
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
