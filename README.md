@@ -837,17 +837,17 @@ This project serves as a comprehensive demonstration of the skills, knowledge, a
 🔹 **Sourangshu Pal** - Senior Visual Computing Engineer  
 📧 Email: spal@sandiego.edu  
 🔗 LinkedIn: sourangshu.pal  
-🐙 GitHub: sourangshupal
+🐙 GitHub: [sourangshupal](https://github.com/sourangshupal)
 
 🔹 **Riyaz Khorasi** - Senior Data Scientist  
 📧 Email: rkhorasi@sandiego.edu 
-🔗 LinkedIn: riyaz.khorasi  
-🐙 GitHub: riyazkhorasi
+🔗 LinkedIn: riyazkhorasi  
+🐙 GitHub: [riyazkhorasi](https://github.com/Riyazmk1995)
 
 🔹 **Prashant Khare** - Lead AI Systems Architect 
 📧 Email: pkhare@sandiego.edu
-🔗 LinkedIn: prashant.khare  
-🐙 GitHub: prashantkhare
+🔗 LinkedIn: prashantkhare82  
+🐙 GitHub:  [https://github.com/sentinel1282](https://github.com/sentinel1282)
 
 **Academic Institution**  
 🎓 **University of San Diego**  
