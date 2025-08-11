@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏥 Advanced Agentic Medical Intelligence System
+# 🏥 Agentic Medical Intelligence System
 ### *Revolutionizing Healthcare Through Artificial Intelligence*
 
 ---
